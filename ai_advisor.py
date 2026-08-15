@@ -2,11 +2,14 @@
 ai_advisor.py
 الربط مع نموذج Google Gemini (مجاني عبر Google AI Studio) لتحليل بيانات اللاعبين
 وتقديم توصيات التشكيلة والتبديلات.
+
+يستخدم مكتبة google-genai الحديثة (وليست google-generativeai القديمة المتوقفة).
 """
 
 import json
 import pandas as pd
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 
 SYSTEM_PROMPT = """أنت محلل خبير في لعبة Fantasy Premier League (FPL).
@@ -43,13 +46,17 @@ def get_ai_recommendation(
     current_squad: list[str] = None,
     budget_remaining: float = None,
     fixture_difficulty_text: str = None,
-    model: str = "gemini-2.5-flash",
+    model: str = "gemini-flash-latest",
 ) -> str:
     """
     يرسل سؤال المستخدم + بيانات اللاعبين المرشحين + تشكيلته الحالية
     + تحليل صعوبة المباريات القادمة إلى Gemini ويرجع التوصية كنص.
+
+    نستخدم "gemini-flash-latest" (وليس اسم إصدار محدد) عشان يبقى الكود
+    شغّال تلقائيًا حتى لو غيّرت جوجل النموذج الأساسي مستقبلاً — هذا alias
+    يشير دائمًا لأحدث نموذج Flash مستقر متاح.
     """
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     context_parts = [f"بيانات اللاعبين المرشحين (JSON):\n{_players_to_json(candidates_df)}"]
 
@@ -66,14 +73,13 @@ def get_ai_recommendation(
 
     user_message = "\n".join(context_parts)
 
-    gemini_model = genai.GenerativeModel(
-        model_name=model,
-        system_instruction=SYSTEM_PROMPT,
-    )
-
-    response = gemini_model.generate_content(
-        user_message,
-        generation_config=genai.types.GenerationConfig(temperature=0.4),
+    response = client.models.generate_content(
+        model=model,
+        contents=user_message,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.4,
+        ),
     )
 
     return response.text
