@@ -19,7 +19,7 @@ st.caption("تحليل بيانات حية من FPL API + توصيات مدعو�
 # ---------- الشريط الجانبي: الإعدادات ----------
 with st.sidebar:
     st.header("الإعدادات")
-    api_key = st.text_input("OpenAI API Key", type="password")
+    api_key = st.text_input("Google Gemini API Key", type="password", help="احصلي على مفتاح مجاني من aistudio.google.com")
     budget = st.number_input("الميزانية المتبقية (مليون)", min_value=0.0, max_value=100.0, value=2.0, step=0.5)
     position_filter = st.selectbox("المركز المطلوب تحليله", ["الكل", "GKP", "DEF", "MID", "FWD"])
     st.markdown("---")
@@ -87,7 +87,7 @@ with col1:
 
 if ask_button:
     if not api_key:
-        st.warning("الرجاء إدخال OpenAI API Key في الشريط الجانبي أولاً.")
+        st.warning("الرجاء إدخال Google Gemini API Key في الشريط الجانبي أولاً.")
     elif not user_question.strip():
         st.warning("الرجاء كتابة سؤال.")
     else:
