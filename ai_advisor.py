@@ -1,12 +1,12 @@
 """
 ai_advisor.py
-الربط مع نموذج لغوي (GPT-4 عبر OpenAI API) لتحليل بيانات اللاعبين
+الربط مع نموذج Google Gemini (مجاني عبر Google AI Studio) لتحليل بيانات اللاعبين
 وتقديم توصيات التشكيلة والتبديلات.
 """
 
 import json
 import pandas as pd
-from openai import OpenAI
+import google.generativeai as genai
 
 
 SYSTEM_PROMPT = """أنت محلل خبير في لعبة Fantasy Premier League (FPL).
@@ -43,13 +43,13 @@ def get_ai_recommendation(
     current_squad: list[str] = None,
     budget_remaining: float = None,
     fixture_difficulty_text: str = None,
-    model: str = "gpt-4o",
+    model: str = "gemini-2.5-flash",
 ) -> str:
     """
     يرسل سؤال المستخدم + بيانات اللاعبين المرشحين + تشكيلته الحالية
-    + تحليل صعوبة المباريات القادمة إلى GPT-4 ويرجع التوصية كنص.
+    + تحليل صعوبة المباريات القادمة إلى Gemini ويرجع التوصية كنص.
     """
-    client = OpenAI(api_key=api_key)
+    genai.configure(api_key=api_key)
 
     context_parts = [f"بيانات اللاعبين المرشحين (JSON):\n{_players_to_json(candidates_df)}"]
 
@@ -66,13 +66,14 @@ def get_ai_recommendation(
 
     user_message = "\n".join(context_parts)
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0.4,
+    gemini_model = genai.GenerativeModel(
+        model_name=model,
+        system_instruction=SYSTEM_PROMPT,
     )
 
-    return response.choices[0].message.content
+    response = gemini_model.generate_content(
+        user_message,
+        generation_config=genai.types.GenerationConfig(temperature=0.4),
+    )
+
+    return response.text
