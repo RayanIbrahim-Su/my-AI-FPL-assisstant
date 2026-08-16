@@ -25,6 +25,12 @@ SYSTEM_PROMPT = """أنت محلل خبير في لعبة Fantasy Premier League
   لاعب فورمه جيد لكن ناديه يواجه مباريات صعبة متتالية قد يكون خيارًا أضعف من لاعب
   فورمه أقل قليلاً لكن مبارياته القادمة سهلة. اذكر هذا في تبريرك عند توفر البيانات.
 
+لديك إمكانية البحث في جوجل (Google Search) للحصول على معلومات حية. استخدمها تحديدًا من أجل:
+- آخر أخبار الإصابات أو الشكوك الطبية للاعبين المذكورين في السؤال (أحدث من البيانات الرقمية المتوفرة لديك).
+- توقعات وتحليلات مواقع متخصصة مثل Fantasy Football Scout أو FPL Statistics أو LiveFPL بخصوص لاعبين معينين أو الجولة القادمة.
+- أي تشكيلة أساسية متوقعة (Predicted Lineup) قد تؤثر على فرصة لعب لاعب معين.
+لا تستخدم البحث لأشياء موجودة أصلاً في بيانات JSON المرسلة إليك (كالسعر أو النقاط الكلية) — اعتمدي عليها مباشرة لتوفير الوقت.
+
 عند الرد:
 - قدّم توصياتك بشكل منظم وواضح.
 - اذكر السبب المختصر وراء كل اقتراح (الفورم، السعر، صعوبة المباريات، حالة الإصابة).
@@ -79,7 +85,24 @@ def get_ai_recommendation(
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.4,
+            tools=[types.Tool(google_search=types.GoogleSearch())],
         ),
     )
 
-    return response.text
+    answer_text = response.text
+
+    # نستخرج قائمة المصادر الفعلية التي بحث فيها النموذج (شفافية للمستخدم)
+    sources = []
+    try:
+        grounding = response.candidates[0].grounding_metadata
+        if grounding and grounding.grounding_chunks:
+            for chunk in grounding.grounding_chunks:
+                if chunk.web:
+                    sources.append(f"- [{chunk.web.title}]({chunk.web.uri})")
+    except (AttributeError, IndexError):
+        pass
+
+    if sources:
+        answer_text += "\n\n---\n**المصادر التي استند إليها البحث:**\n" + "\n".join(sources)
+
+    return answer_text
